@@ -1,24 +1,17 @@
 package edu.ucu.ua.flowers_store_continue.item.decorators;
 
-
 import edu.ucu.ua.flowers_store_continue.item.Item;
-import edu.ucu.ua.flowers_store_continue.item.ItemDecorator;
 
-public class PaperDecorator extends ItemDecorator {
-    private Item item;
+public class PaperDecorator extends AbstractDecorator {
+    private static final double PAPER_PRICE = 13.0;
 
-    public PaperDecorator(Item item) {
-        this.item = item;
-        this.description = item.description + " paper decorated";
+    public PaperDecorator(Item wrapped) {
+        super(wrapped);
+        this.description = wrapped.getDescription() + " + paper";
     }
 
-    public boolean equals(Item other) {
-        return other.description == description;
+    @Override
+    public double price() {
+        return wrapped.price() + PAPER_PRICE;
     }
-
-    public String getDescription() {return description;}
-
-    public double price() {return getPrice();}
-
-    public double getPrice() {return 13 + item.price();}
 }

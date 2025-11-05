@@ -6,6 +6,7 @@ import edu.ucu.ua.flowers_store_continue.delivery.DHLDeliveryStrategy;
 import edu.ucu.ua.flowers_store_continue.delivery.PostDeliveryStrategy;
 import edu.ucu.ua.flowers_store_continue.order.Order;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 public class DeliveryController {
     private final Order order;
 
+    @Autowired
     public DeliveryController(Order order) {
         this.order = order;
     }

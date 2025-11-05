@@ -1,24 +1,17 @@
 package edu.ucu.ua.flowers_store_continue.item.decorators;
 
-
 import edu.ucu.ua.flowers_store_continue.item.Item;
-import edu.ucu.ua.flowers_store_continue.item.ItemDecorator;
 
-public class RibbonDecorator extends ItemDecorator {
-    private Item item;
+public class RibbonDecorator extends AbstractDecorator {
+    private static final double RIBBON_PRICE = 40.0;
 
-    public RibbonDecorator(Item item) {
-        this.item = item;
-        this.description = item.description + " ribbon decorated";
+    public RibbonDecorator(Item wrapped) {
+        super(wrapped);
+        this.description = wrapped.getDescription() + " + ribbon";
     }
 
-    public boolean equals(Item other) {
-        return other.description == description;
+    @Override
+    public double price() {
+        return wrapped.price() + RIBBON_PRICE;
     }
-
-    public String getDescription() {return description;}
-
-    public double price() {return getPrice();}
-
-    public double getPrice() {return 40 + item.price();}
 }
