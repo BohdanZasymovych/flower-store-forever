@@ -22,9 +22,13 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: flowers
-        # no options here: avoid passing health-cmd which can be sensitive to
-        # quoting/CLI parsing on the runner and cause 'docker create' to fail.
-        # We'll wait for Postgres using a TCP check in the steps below.
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - uses: actions/checkout@v3
@@ -42,66 +46,25 @@ jobs:
       - name: Install psql client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
-      - name: Wait for Postgres (more robust)
+      - name: Wait for Postgres service to be healthy
         env:
           PGPASSWORD: postgres
         run: |
-          # First wait for the TCP port to accept connections (max ~60s)
-          echo "Waiting for postgres TCP port to open..."
-          for i in $(seq 1 60); do
-            echo "TCP check attempt $i..."
-            if bash -c "cat < /dev/tcp/postgres/5432" >/dev/null 2>&1; then
-              echo "TCP port 5432 on 'postgres' is open"
-              break
-            fi
-            sleep 1
-          done
-
-          # Then try psql against the target DB 'flowers' for a longer time (max ~120s)
-          echo "Trying psql to connect to 'flowers' DB..."
-          for i in $(seq 1 120); do
-            echo "Trying psql connection attempt $i..."
-            if psql -h postgres -U postgres -d flowers -c "SELECT 1;" >/dev/null 2>&1; then
+          # The service health check should have gated execution,
+          # but do a quick sanity check that 'flowers' DB is accessible
+          for i in $(seq 1 10); do
+            echo "Sanity check attempt $i..."
+            if psql -h localhost -U postgres -d flowers -c "SELECT 1;" >/dev/null 2>&1; then
               echo "Postgres is ready and 'flowers' DB is accessible"
-              break
+              exit 0
             fi
             sleep 1
           done
-
-          # If still failing, try to connect to the default 'postgres' DB and create 'flowers' if it doesn't exist
-          if ! psql -h postgres -U postgres -d flowers -c "SELECT 1;" >/dev/null 2>&1; then
-            echo "'flowers' DB not accessible yet. Inspecting the default 'postgres' DB..."
-            if psql -h postgres -U postgres -d postgres -c "SELECT 1;" >/dev/null 2>&1; then
-              echo "Connected to 'postgres' DB. Checking if 'flowers' exists and creating it if needed..."
-              exists=$(psql -h postgres -U postgres -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='flowers';") || true
-              if [ "${exists}" != "1" ]; then
-                echo "Creating database 'flowers'..."
-                psql -h postgres -U postgres -d postgres -c "CREATE DATABASE \"flowers\";"
-              else
-                echo "Database 'flowers' already exists"
-              fi
-
-              # try connecting to 'flowers' a few more times
-              for j in $(seq 1 30); do
-                if psql -h postgres -U postgres -d flowers -c "SELECT 1;" >/dev/null 2>&1; then
-                  echo "Created and connected to 'flowers' DB"
-                  break
-                fi
-                sleep 1
-              done
-            else
-              echo "Unable to connect to default 'postgres' DB either; postgres service not ready" >&2
-            fi
-          fi
-
-          if ! psql -h postgres -U postgres -d flowers -c "SELECT 1;" >/dev/null 2>&1; then
-            echo "Postgres did not become ready in time" >&2
-            exit 1
-          fi
+          echo "Warning: Postgres sanity check failed; proceeding anyway" >&2
 
       - name: Run tests
         env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/flowers
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/flowers
           SPRING_DATASOURCE_USERNAME: postgres
           SPRING_DATASOURCE_PASSWORD: postgres
         run: ./mvnw -B test
